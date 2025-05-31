@@ -1,0 +1,74 @@
+groups:
+  - name: flask-alerts
+    rules:
+      - alert: HighRequestRate
+        expr: rate(flask_request_count_total[1m]) > 1
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая частота запросов"
+          description: "Более 1 запроса/сек на Flask-приложение в течение 30 секунд"
+
+      - alert: FlaskAppDown
+        expr: up{job="flask-app"} == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Flask приложение недоступно"
+          description: "Flask не отвечает с instance={{ $labels.instance }}"
+
+  - name: system-alerts
+    rules:
+      - alert: HighCPU
+        expr: rate(node_cpu_seconds_total{mode!="idle"}[1m]) > 0.8
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая загрузка CPU"
+          description: "CPU используется > 80% на {{ $labels.instance }}"
+
+      - alert: HighMemory
+        expr: (node_memory_Active_bytes / node_memory_MemTotal_bytes) > 0.8
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокое использование памяти"
+          description: "Используется > 80% памяти на {{ $labels.instance }}"
+
+      - alert: DiskFull
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes) < 0.1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Заканчивается место на диске"
+          description: "Свободно < 10% на {{ $labels.instance }}"
+
+  - name: mongodb-alerts
+    rules:
+      - alert: MongoServiceDown
+        expr: (up{job="mongodb-exporter"} == 0) or (mongodb_up == 0)
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "MongoDB недоступна"
+          description: |
+            Проблема с MongoDB или её экспортёром на {{ $labels.instance }}.
+            Возможные причины:
+            - MongoDB не отвечает
+            - MongoDB экспортёр упал
+
+
+      - alert: MongoConnectionsHigh
+        expr: mongodb_mongod_connections_current > 100
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокое количество подключений к MongoDB"
+          description: "Подключений к MongoDB более 100 на {{ $labels.instance }}"
