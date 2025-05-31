@@ -1,0 +1,41 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r ansible/roles/web/files/requirements.txt
+      - name: Run tests
+        run: pytest ansible/roles/web/files/app.py
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+      - name: Copy SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/maxx.pem
+          chmod 600 ~/.ssh/maxx.pem
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy_web.yml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
