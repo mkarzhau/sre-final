@@ -1,0 +1,96 @@
+global:
+  resolve_timeout: 1m
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 1h
+  receiver: 'default-receiver'
+
+  routes:
+    # 🛑 Критические алерты — отправить ОБОИМ
+    - match:
+        severity: 'critical'
+      receiver: 'both-admins'
+
+    # ⚠️ Проблемы с сайтом — отправить первому администратору
+    - match_re:
+        alertname: 'WebsiteDown|LoginFailure|HTTP5xx'
+      receiver: 'main-admin'
+
+    # 🔧 Проблемы с ресурсами — второму администратору
+    - match_re:
+        alertname: 'HighCPU|HighMemory|DiskFull'
+      receiver: 'second-admin'
+    - match_re:
+        alertname: 'HighCPU|HighMemory|DiskFull|MongoConnectionsHigh'
+      receiver: 'second-admin'
+    - match_re:
+        alertname: 'HighRequestRate|WebsiteDown|LoginFailure|HTTP5xx'
+      receiver: 'main-admin'
+
+
+receivers:
+  - name: 'main-admin'
+    telegram_configs:
+      - bot_token: '7902458952:AAFfbNdAPjMTdaN6QjeLI9pJE1q7GLWZYJM'
+        chat_id: 1044841557
+        parse_mode: 'Markdown'
+        message: |
+          ⚠️ *Проблема с сайтом или логином*
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Instance:* {{ .CommonLabels.instance }}
+          *Описание:* {{ .CommonAnnotations.description }}
+
+  - name: 'second-admin'
+    telegram_configs:
+      - bot_token: '7902458952:AAFfbNdAPjMTdaN6QjeLI9pJE1q7GLWZYJM'
+        chat_id: 965417533
+        parse_mode: 'Markdown'
+        message: |
+          🔧 *Нагрузка или ресурсы*
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Instance:* {{ .CommonLabels.instance }}
+          *Описание:* {{ .CommonAnnotations.description }}
+
+  - name: 'both-admins'
+    telegram_configs:
+      - bot_token: '7902458952:AAFfbNdAPjMTdaN6QjeLI9pJE1q7GLWZYJM'
+        chat_id: 1044841557
+        parse_mode: 'Markdown'
+        message: |
+          🛑 *CRITICAL ALERT!*
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Instance:* {{ .CommonLabels.instance }}
+          *Описание:* {{ .CommonAnnotations.description }}
+
+      - bot_token: '7902458952:AAFfbNdAPjMTdaN6QjeLI9pJE1q7GLWZYJM'
+        chat_id: 965417533
+        parse_mode: 'Markdown'
+        message: |
+          🛑 *CRITICAL ALERT!*
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Instance:* {{ .CommonLabels.instance }}
+          *Описание:* {{ .CommonAnnotations.description }}
+
+  - name: 'default-receiver'
+    telegram_configs:
+      - bot_token: '7902458952:AAFfbNdAPjMTdaN6QjeLI9pJE1q7GLWZYJM'
+        chat_id: 1044841557
+        parse_mode: 'Markdown'
+        message: |
+          📌 *Default Alert*
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Instance:* {{ .CommonLabels.instance }}
+          *Описание:* {{ .CommonAnnotations.description }}
+      
+
+      - bot_token: '7902458952:AAFfbNdAPjMTdaN6QjeLI9pJE1q7GLWZYJM'
+        chat_id: 965417533
+        parse_mode: 'Markdown'
+        message: |
+          📌 *Default Alert*
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Instance:* {{ .CommonLabels.instance }}
+          *Описание:* {{ .CommonAnnotations.description }}
